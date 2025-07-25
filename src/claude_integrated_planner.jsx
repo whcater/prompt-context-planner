@@ -547,7 +547,7 @@ ${analysis.successCriteria.map(c => `- ${c}`).join('\n')}
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-3 mb-4">
           <Brain className="w-8 h-8 text-purple-600" />
-          <h1 className="text-3xl font-bold text-gray-800">多AI智能规划器</h1>
+          <h1 className="text-3xl font-bold text-gray-800">开发者的上下文提示词规划器</h1>
         </div>
         <p className="text-gray-600">支持Claude、OpenAI、xAI等多种AI服务的项目分析与提示词生成</p>
       </div>
