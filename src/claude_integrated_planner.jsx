@@ -41,10 +41,11 @@ const ClaudeIntegratedPlanner = () => {
       name: 'xAI (Grok)',
       endpoint: 'https://api.x.ai/v1/chat/completions',
       models: [
-        'grok-beta',
-        'grok-vision-beta'
+        'grok-4-0709',
+        'grok-3',
+        'grok-3-latest'
       ],
-      defaultModel: 'grok-beta'
+      defaultModel: 'grok-1'
     },
     deepseek: {
       name: 'DeepSeek',
@@ -103,14 +104,24 @@ const ClaudeIntegratedPlanner = () => {
 }`;
 
     try {
-      // 使用代理服务器进行API调用
-      const proxyEndpoint = `http://localhost:3001/api/ai/${aiProvider}`;
+      // 始终使用相对路径，让Vite代理处理转发
+      const getProxyEndpoint = () => {
+        return `/api/ai/${aiProvider}`;
+      };
+
+      const proxyEndpoint = getProxyEndpoint();
+      console.log(`尝试调用: ${proxyEndpoint}`);
+      console.log(`完整URL: ${window.location.origin}${proxyEndpoint}`);
+      console.log(`当前页面: ${window.location.href}`);
       
       const response = await fetch(proxyEndpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
+        mode: 'cors',
+        credentials: 'include',
         body: JSON.stringify({
           apiKey: apiKey,
           model: model,
@@ -123,8 +134,14 @@ const ClaudeIntegratedPlanner = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`API 调用失败: ${errorData.error || response.statusText}`);
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = `API 调用失败 (${response.status}): ${errorData.error || response.statusText}`;
+        } catch (e) {
+          errorMessage = `API 调用失败 (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -132,24 +149,49 @@ const ClaudeIntegratedPlanner = () => {
       // 根据不同AI服务解析响应
       let analysisText;
       if (aiProvider === 'claude') {
-        analysisText = data.content[0].text;
+        analysisText = data.content?.[0]?.text || '';
       } else {
-        analysisText = data.choices[0].message.content;
+        analysisText = data.choices?.[0]?.message?.content || '';
+      }
+      
+      if (!analysisText) {
+        throw new Error('AI返回的响应格式异常');
       }
       
       // 提取JSON部分
       const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('无法解析AI返回的分析结果');
+        throw new Error('无法解析AI返回的分析结果，请检查API配置');
       }
 
       return JSON.parse(jsonMatch[0]);
     } catch (error) {
       console.error('AI API 调用错误:', error);
-      // 如果是网络错误，提供更友好的提示
-      if (error.message.includes('Failed to fetch')) {
-        throw new Error('无法连接到代理服务器，请确保代理服务器已启动 (http://localhost:3001)');
+      
+      // 提供详细的错误诊断
+      if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+        throw new Error(`
+网络连接失败，请检查：
+1. 代理服务器是否已启动 (npm run server)
+2. 代理服务器是否运行在 http://localhost:3000
+3. 网络连接是否正常
+4. 浏览器是否阻止了跨域请求
+
+原始错误: ${error.message}
+        `);
       }
+      
+      if (error.message.includes('CORS')) {
+        throw new Error(`
+CORS跨域错误，请检查：
+1. 代理服务器的CORS配置
+2. 前端应用端口是否正确
+3. 重启代理服务器
+
+原始错误: ${error.message}
+        `);
+      }
+      
       throw error;
     }
   };

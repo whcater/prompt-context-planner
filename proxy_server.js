@@ -1,19 +1,50 @@
-// AI API 代理服务器 - Express.js版本
+// AI API 代理服务器 - Express.js版本 (ES Module)
 // 安装依赖：npm install express cors dotenv node-fetch
 // 使用方法：node proxy-server.js
 
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import { config } from 'dotenv';
+import fetch from 'node-fetch';
+
+config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // 中间件
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://claude.ai', '*'], // 允许的域名
-  credentials: true
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3002',
+    'http://localhost:5173', // Vite默认端口
+    'http://127.0.0.1:3000', // 添加127.0.0.1显式支持
+    'https://claude.ai'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar']
 }));
+
+// 手动处理预检请求
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && [
+    'http://localhost:3000', 
+    'http://localhost:3002',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'https://claude.ai'
+  ].includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
 app.use(express.json({ limit: '10mb' }));
 
 // AI服务配置
@@ -97,7 +128,6 @@ app.post('/api/ai/:provider', async (req, res) => {
     }
 
     // 发送请求到AI服务
-    const fetch = (await import('node-fetch')).default;
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: headers,

@@ -1,19 +1,32 @@
 {
-  "name": "ai-proxy-server",
+  "name": "claude-integrated-planner",
   "version": "1.0.0",
-  "main": "proxy_server.js",
+  "type": "module",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node proxy_server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node proxy_server.js",
+    "start": "npm run server"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Claude集成规划器 - 支持多AI服务的项目分析与提示词生成工具",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "node-fetch": "^3.3.2"
+    "express": "^4.18.2",
+    "lucide-react": "^0.263.1",
+    "node-fetch": "^3.3.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "vite": "^4.4.5"
   }
 }

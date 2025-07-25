@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(move:*)",
+      "Bash(mv:*)",
+      "Bash(npm install)",
+      "Bash(npm run server:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cd \"C:\\dev\\ai\\hai\\refer\\ai-proxy-server\")",
+      "Bash(timeout 5 npm run server)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(npx:*)",
+      "Bash(curl:*)",
+      "Bash(rg:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}
