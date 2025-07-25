@@ -1,5 +1,5 @@
 {
-  "name": "claude-integrated-planner",
+  "name": "prompt-context-planner",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
@@ -10,10 +10,10 @@
     "server": "node proxy_server.js",
     "start": "npm run server"
   },
-  "keywords": [],
+  "keywords": ["prompt", "context", "planner"],
   "author": "",
   "license": "ISC",
-  "description": "Claude集成规划器 - 支持多AI服务的项目分析与提示词生成工具",
+  "description": "开发者的上下文提示词规划器 - 支持多AI服务的项目分析与提示词生成工具",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
