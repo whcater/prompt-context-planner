@@ -45,7 +45,7 @@ const ClaudeIntegratedPlanner = () => {
         'grok-3',
         'grok-3-latest'
       ],
-      defaultModel: 'grok-1'
+      defaultModel: 'grok-4-0709'
     },
     deepseek: {
       name: 'DeepSeek',
@@ -486,6 +486,7 @@ ${analysis.successCriteria.map(c => `- ${c}`).join('\n')}
 
   // 当切换AI服务商时重置模型
   const handleProviderChange = (provider) => {
+    console.log('provider',provider);
     setAiProvider(provider);
     if (provider !== 'custom') {
       setModelName(aiProviders[provider].defaultModel);

@@ -10,7 +10,11 @@
     "server": "node proxy_server.js",
     "start": "npm run server"
   },
-  "keywords": ["prompt", "context", "planner"],
+  "keywords": [
+    "prompt",
+    "context",
+    "planner"
+  ],
   "author": "",
   "license": "ISC",
   "description": "开发者的上下文提示词规划器 - 支持多AI服务的项目分析与提示词生成工具",
@@ -18,6 +22,8 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.18.2",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
     "lucide-react": "^0.263.1",
     "node-fetch": "^3.3.2",
     "react": "^18.2.0",

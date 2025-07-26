@@ -127,11 +127,22 @@ app.post('/api/ai/:provider', async (req, res) => {
       };
     }
 
+
+    let proxyUrl = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.https_proxy;
+
+    const httpsProxyModule = await import('https-proxy-agent');
+    const HttpsProxyAgent = httpsProxyModule.HttpsProxyAgent || httpsProxyModule.default;
+    let agent = new HttpsProxyAgent(proxyUrl);
+
+    console.log('endpoint',endpoint);
+    console.log('requestBody', requestBody);
+    console.log('re',endpoint);
     // 发送请求到AI服务
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      agent: agent
     });
 
     const data = await response.json();
