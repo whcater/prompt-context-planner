@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronRight, ChevronDown, Copy, Check, Lightbulb, Code, Settings, TestTube, Wrench, Brain, AlertTriangle, Clock, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, ChevronDown, Copy, Check, Lightbulb, Code, Settings, TestTube, Wrench, Brain, AlertTriangle, Clock, Zap, Save, FolderOpen, Edit, X } from 'lucide-react';
 
 const ClaudeIntegratedPlanner = () => {
   const [userInput, setUserInput] = useState('');
@@ -13,6 +13,10 @@ const ClaudeIntegratedPlanner = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [error, setError] = useState('');
+  const [savedPlans, setSavedPlans] = useState([]);
+  const [showSavedPlans, setShowSavedPlans] = useState(false);
+  const [editingStep, setEditingStep] = useState(null);
+  const [editedPrompt, setEditedPrompt] = useState('');
 
   // AI 服务提供商配置
   const aiProviders = {
@@ -62,6 +66,120 @@ const ClaudeIntegratedPlanner = () => {
       models: [],
       defaultModel: ''
     }
+  };
+
+  // localStorage 工具函数
+  const saveToLocalStorage = (key, data) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+      return true;
+    } catch (error) {
+      console.error('保存到localStorage失败:', error);
+      return false;
+    }
+  };
+
+  const loadFromLocalStorage = (key) => {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('从localStorage读取失败:', error);
+      return null;
+    }
+  };
+
+  const removeFromLocalStorage = (key) => {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      console.error('从localStorage删除失败:', error);
+      return false;
+    }
+  };
+
+  // 加载已保存的计划
+  useEffect(() => {
+    const plans = loadFromLocalStorage('prompt-planner-saved-plans') || [];
+    setSavedPlans(plans);
+  }, []);
+
+  // 保存当前计划
+  const saveCurrentPlan = () => {
+    if (!currentPlan) {
+      setError('没有可保存的计划');
+      return;
+    }
+
+    const timestamp = Date.now();
+    const planToSave = {
+      id: timestamp,
+      name: currentPlan.analysis.projectName || '未命名项目',
+      userInput,
+      aiProvider,
+      modelName,
+      currentPlan,
+      savedAt: new Date().toLocaleString(),
+      timestamp
+    };
+
+    const updatedPlans = [planToSave, ...savedPlans];
+    setSavedPlans(updatedPlans);
+    saveToLocalStorage('prompt-planner-saved-plans', updatedPlans);
+    
+    setError('');
+    alert('计划已保存到本地！');
+  };
+
+  // 加载已保存的计划
+  const loadSavedPlan = (savedPlan) => {
+    setUserInput(savedPlan.userInput);
+    setAiProvider(savedPlan.aiProvider);
+    setModelName(savedPlan.modelName);
+    setCurrentPlan(savedPlan.currentPlan);
+    setExpandedSteps(new Set());
+    setCopiedPrompts(new Set());
+    setShowSavedPlans(false);
+  };
+
+  // 删除已保存的计划
+  const deleteSavedPlan = (planId) => {
+    const updatedPlans = savedPlans.filter(plan => plan.id !== planId);
+    setSavedPlans(updatedPlans);
+    saveToLocalStorage('prompt-planner-saved-plans', updatedPlans);
+  };
+
+  // 开始编辑步骤提示词
+  const startEditingStep = (stepId, currentPrompt) => {
+    setEditingStep(stepId);
+    setEditedPrompt(currentPrompt);
+  };
+
+  // 保存编辑的提示词
+  const saveEditedPrompt = () => {
+    if (!currentPlan || !editingStep || !editedPrompt.trim()) {
+      return;
+    }
+
+    const updatedPlan = {
+      ...currentPlan,
+      steps: currentPlan.steps.map(step => 
+        step.id === editingStep 
+          ? { ...step, prompt: editedPrompt.trim() }
+          : step
+      )
+    };
+
+    setCurrentPlan(updatedPlan);
+    setEditingStep(null);
+    setEditedPrompt('');
+  };
+
+  // 取消编辑
+  const cancelEditing = () => {
+    setEditingStep(null);
+    setEditedPrompt('');
   };
 
   // 通用 AI API 调用（通过代理服务器）
@@ -551,7 +669,84 @@ ${analysis.successCriteria.map(c => `- ${c}`).join('\n')}
           <h1 className="text-3xl font-bold text-gray-800">开发者的上下文提示词规划器</h1>
         </div>
         <p className="text-gray-600">支持Claude、OpenAI、xAI等多种AI服务的项目分析与提示词生成</p>
+        
+        {/* 保存/加载控件 */}
+        <div className="flex items-center justify-center gap-4 mt-6">
+          {currentPlan && (
+            <button
+              onClick={saveCurrentPlan}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              保存计划
+            </button>
+          )}
+          <button
+            onClick={() => setShowSavedPlans(!showSavedPlans)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <FolderOpen className="w-4 h-4" />
+            我的计划 ({savedPlans.length})
+          </button>
+        </div>
       </div>
+
+      {/* 已保存的计划列表 */}
+      {showSavedPlans && (
+        <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-800">已保存的计划</h3>
+            <button
+              onClick={() => setShowSavedPlans(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {savedPlans.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">暂无保存的计划</p>
+          ) : (
+            <div className="grid gap-4 max-h-96 overflow-y-auto">
+              {savedPlans.map((plan) => (
+                <div key={plan.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-800">{plan.name}</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        保存时间: {plan.savedAt} | AI服务: {aiProviders[plan.aiProvider]?.name}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                        {plan.userInput.substring(0, 100)}...
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() => loadSavedPlan(plan)}
+                        className="flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition-colors text-sm"
+                      >
+                        <FolderOpen className="w-3 h-3" />
+                        加载
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('确定要删除这个计划吗？')) {
+                            deleteSavedPlan(plan.id);
+                          }
+                        }}
+                        className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition-colors text-sm"
+                      >
+                        <X className="w-3 h-3" />
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* API 配置 */}
       <div className="mb-6">
@@ -857,27 +1052,71 @@ ${analysis.successCriteria.map(c => `- ${c}`).join('\n')}
                         <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                           {aiProviders[aiProvider].name}
                         </span>
-                        <button
-                          onClick={() => copyPrompt(step.id, step.prompt)}
-                          className="flex items-center gap-2 px-3 py-1 bg-purple-100 hover:bg-purple-200 rounded text-sm transition-colors"
-                        >
-                          {copiedPrompts.has(step.id) ? (
-                            <>
-                              <Check className="w-4 h-4 text-green-600" />
-                              已复制
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              复制
-                            </>
-                          )}
-                        </button>
+                        {editingStep !== step.id ? (
+                          <>
+                            <button
+                              onClick={() => startEditingStep(step.id, step.prompt)}
+                              className="flex items-center gap-2 px-3 py-1 bg-orange-100 hover:bg-orange-200 rounded text-sm transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                              编辑
+                            </button>
+                            <button
+                              onClick={() => copyPrompt(step.id, step.prompt)}
+                              className="flex items-center gap-2 px-3 py-1 bg-purple-100 hover:bg-purple-200 rounded text-sm transition-colors"
+                            >
+                              {copiedPrompts.has(step.id) ? (
+                                <>
+                                  <Check className="w-4 h-4 text-green-600" />
+                                  已复制
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-4 h-4" />
+                                  复制
+                                </>
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={saveEditedPrompt}
+                              className="flex items-center gap-2 px-3 py-1 bg-green-100 hover:bg-green-200 rounded text-sm transition-colors"
+                            >
+                              <Check className="w-4 h-4" />
+                              保存
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="flex items-center gap-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                              取消
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
-                      {step.prompt}
-                    </pre>
+                    
+                    {editingStep === step.id ? (
+                      <div className="space-y-3">
+                        <textarea
+                          value={editedPrompt}
+                          onChange={(e) => setEditedPrompt(e.target.value)}
+                          className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
+                          placeholder="在这里编辑您的提示词..."
+                        />
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>提示：您可以根据项目特定需求修改这个提示词</span>
+                          <span>{editedPrompt.length} 字符</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
+                        {step.prompt}
+                      </pre>
+                    )}
                   </div>
                 </div>
               )}
