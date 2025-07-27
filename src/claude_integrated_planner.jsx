@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Copy, Check, Lightbulb, Code, Settings, TestTube, Wrench, Brain, AlertTriangle, Clock, Zap, Save, FolderOpen, Edit, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronRight, ChevronDown, Copy, Check, Lightbulb, Code, Settings, TestTube, Wrench, Brain, AlertTriangle, Clock, Zap, Save, FolderOpen, Edit, X, Menu, Plus } from 'lucide-react';
 
 const ClaudeIntegratedPlanner = () => {
   const [userInput, setUserInput] = useState('');
@@ -17,6 +17,15 @@ const ClaudeIntegratedPlanner = () => {
   const [showSavedPlans, setShowSavedPlans] = useState(false);
   const [editingStep, setEditingStep] = useState(null);
   const [editedPrompt, setEditedPrompt] = useState('');
+  
+  // 浮球菜单相关状态
+  const [fabPosition, setFabPosition] = useState({ x: 50, y: 200 });
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStarted, setDragStarted] = useState(false);
+  const fabRef = useRef(null);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const startPosition = useRef({ x: 0, y: 0 });
 
   // AI 服务提供商配置
   const aiProviders = {
@@ -103,7 +112,167 @@ const ClaudeIntegratedPlanner = () => {
   useEffect(() => {
     const plans = loadFromLocalStorage('prompt-planner-saved-plans') || [];
     setSavedPlans(plans);
+    
+    // 加载浮球位置
+    const savedPosition = loadFromLocalStorage('fab-position');
+    if (savedPosition) {
+      setFabPosition(savedPosition);
+    }
   }, []);
+
+  // 浮球拖拽功能
+  const handleMouseDown = (e) => {
+    if (!fabRef.current) return;
+    
+    const rect = fabRef.current.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    dragOffset.current = {
+      x: startX - rect.left,
+      y: startY - rect.top
+    };
+    
+    startPosition.current = { x: startX, y: startY };
+    setDragStarted(true);
+    
+    e.preventDefault();
+  };
+
+  const handleMouseMove = useCallback((e) => {
+    if (!dragStarted) return;
+    
+    const deltaX = Math.abs(e.clientX - startPosition.current.x);
+    const deltaY = Math.abs(e.clientY - startPosition.current.y);
+    
+    // 如果移动距离超过5像素，开始拖拽
+    if (deltaX > 5 || deltaY > 5) {
+      if (!isDragging) {
+        setIsDragging(true);
+      }
+    }
+    
+    if (isDragging) {
+      const newX = e.clientX - dragOffset.current.x;
+      const newY = e.clientY - dragOffset.current.y;
+      
+      // 限制在视窗范围内
+      const maxX = window.innerWidth - 64; // 64px 是浮球宽度
+      const maxY = window.innerHeight - 64;
+      
+      const boundedX = Math.max(0, Math.min(newX, maxX));
+      const boundedY = Math.max(0, Math.min(newY, maxY));
+      
+      setFabPosition({ x: boundedX, y: boundedY });
+    }
+  }, [dragStarted, isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setDragStarted(false);
+    setIsDragging(false);
+  }, []);
+
+  // 处理拖拽事件监听器
+  useEffect(() => {
+    if (dragStarted) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [dragStarted, handleMouseMove, handleMouseUp]);
+
+  // 保存位置到localStorage
+  useEffect(() => {
+    if (!isDragging && !dragStarted) {
+      saveToLocalStorage('fab-position', fabPosition);
+    }
+  }, [fabPosition, isDragging, dragStarted]);
+
+  // 触摸事件处理（移动端支持）
+  const handleTouchStart = (e) => {
+    if (!fabRef.current) return;
+    
+    const touch = e.touches[0];
+    const rect = fabRef.current.getBoundingClientRect();
+    const startX = touch.clientX;
+    const startY = touch.clientY;
+    
+    dragOffset.current = {
+      x: startX - rect.left,
+      y: startY - rect.top
+    };
+    
+    startPosition.current = { x: startX, y: startY };
+    setDragStarted(true);
+  };
+
+  const handleTouchMove = useCallback((e) => {
+    if (!dragStarted) return;
+    
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - startPosition.current.x);
+    const deltaY = Math.abs(touch.clientY - startPosition.current.y);
+    
+    // 如果移动距离超过5像素，开始拖拽
+    if (deltaX > 5 || deltaY > 5) {
+      if (!isDragging) {
+        setIsDragging(true);
+      }
+      e.preventDefault();
+    }
+    
+    if (isDragging) {
+      const newX = touch.clientX - dragOffset.current.x;
+      const newY = touch.clientY - dragOffset.current.y;
+      
+      const maxX = window.innerWidth - 64;
+      const maxY = window.innerHeight - 64;
+      
+      const boundedX = Math.max(0, Math.min(newX, maxX));
+      const boundedY = Math.max(0, Math.min(newY, maxY));
+      
+      setFabPosition({ x: boundedX, y: boundedY });
+    }
+  }, [dragStarted, isDragging]);
+
+  const handleTouchEnd = useCallback(() => {
+    setDragStarted(false);
+    setIsDragging(false);
+  }, []);
+
+  // 处理触摸事件监听器
+  useEffect(() => {
+    if (dragStarted) {
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+      
+      return () => {
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
+      };
+    }
+  }, [dragStarted, handleTouchMove, handleTouchEnd]);
+
+  // 点击外部关闭浮球菜单
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (fabMenuOpen) {
+        setFabMenuOpen(false);
+      }
+    };
+
+    if (fabMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+      
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [fabMenuOpen]);
 
   // 保存当前计划
   const saveCurrentPlan = () => {
@@ -669,84 +838,7 @@ ${analysis.successCriteria.map(c => `- ${c}`).join('\n')}
           <h1 className="text-3xl font-bold text-gray-800">开发者的上下文提示词规划器</h1>
         </div>
         <p className="text-gray-600">支持Claude、OpenAI、xAI等多种AI服务的项目分析与提示词生成</p>
-        
-        {/* 保存/加载控件 */}
-        <div className="flex items-center justify-center gap-4 mt-6">
-          {currentPlan && (
-            <button
-              onClick={saveCurrentPlan}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Save className="w-4 h-4" />
-              保存计划
-            </button>
-          )}
-          <button
-            onClick={() => setShowSavedPlans(!showSavedPlans)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <FolderOpen className="w-4 h-4" />
-            我的计划 ({savedPlans.length})
-          </button>
-        </div>
       </div>
-
-      {/* 已保存的计划列表 */}
-      {showSavedPlans && (
-        <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-800">已保存的计划</h3>
-            <button
-              onClick={() => setShowSavedPlans(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          
-          {savedPlans.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">暂无保存的计划</p>
-          ) : (
-            <div className="grid gap-4 max-h-96 overflow-y-auto">
-              {savedPlans.map((plan) => (
-                <div key={plan.id} className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-800">{plan.name}</h4>
-                      <p className="text-sm text-gray-600 mt-1">
-                        保存时间: {plan.savedAt} | AI服务: {aiProviders[plan.aiProvider]?.name}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                        {plan.userInput.substring(0, 100)}...
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => loadSavedPlan(plan)}
-                        className="flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 transition-colors text-sm"
-                      >
-                        <FolderOpen className="w-3 h-3" />
-                        加载
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm('确定要删除这个计划吗？')) {
-                            deleteSavedPlan(plan.id);
-                          }
-                        }}
-                        className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition-colors text-sm"
-                      >
-                        <X className="w-3 h-3" />
-                        删除
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* API 配置 */}
       <div className="mb-6">
@@ -1122,6 +1214,158 @@ ${analysis.successCriteria.map(c => `- ${c}`).join('\n')}
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 可拖拽浮球菜单 */}
+      <div
+        ref={fabRef}
+        className={`fixed z-50 transition-all duration-200 ${
+          isDragging ? 'cursor-grabbing fab-dragging' : 'cursor-grab'
+        }`}
+        style={{
+          left: `${fabPosition.x}px`,
+          top: `${fabPosition.y}px`,
+        }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+      >
+        {/* 主浮球按钮 */}
+        <div
+          className={`w-14 h-14 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center text-white ${
+            fabMenuOpen ? 'rotate-45' : 'hover:scale-110'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            // 只有在没有拖拽状态下才允许切换菜单
+            if (!isDragging && !dragStarted) {
+              setFabMenuOpen(!fabMenuOpen);
+            }
+          }}
+        >
+          {fabMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </div>
+
+        {/* 菜单选项 */}
+        {fabMenuOpen && (
+          <div className="absolute bottom-16 left-0 flex flex-col gap-3 fab-menu-enter">
+            {/* 保存计划按钮 */}
+            {currentPlan && (
+              <div
+                className="w-12 h-12 bg-green-500 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center text-white hover:scale-110 fab-item-enter"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveCurrentPlan();
+                  setFabMenuOpen(false);
+                }}
+                title="保存计划"
+                style={{ animationDelay: '0.1s' }}
+              >
+                <Save className="w-5 h-5" />
+              </div>
+            )}
+            
+            {/* 我的计划按钮 */}
+            <div
+              className="w-12 h-12 bg-blue-500 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center text-white hover:scale-110 fab-item-enter"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSavedPlans(true);
+                setFabMenuOpen(false);
+              }}
+              title={`我的计划 (${savedPlans.length})`}
+              style={{ animationDelay: '0.15s' }}
+            >
+              <FolderOpen className="w-5 h-5" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 已保存计划的模态框 */}
+      {showSavedPlans && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* 背景遮罩 */}
+          <div
+            className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+            onClick={() => setShowSavedPlans(false)}
+          />
+          
+          {/* 模态框内容 */}
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden modal-enter">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                  <FolderOpen className="w-6 h-6 text-blue-600" />
+                  我的计划
+                </h3>
+                <button
+                  onClick={() => setShowSavedPlans(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+              
+              {savedPlans.length === 0 ? (
+                <div className="text-center py-16">
+                  <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg">暂无保存的计划</p>
+                  <p className="text-gray-400 text-sm mt-2">生成计划后点击浮球菜单中的保存按钮来保存您的计划</p>
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto">
+                  <div className="grid gap-4">
+                    {savedPlans.map((plan, index) => (
+                      <div key={plan.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-all duration-200 hover:shadow-md fab-item-enter" style={{ animationDelay: `${index * 0.05}s` }}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-800 text-lg">{plan.name}</h4>
+                            <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {plan.savedAt}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Brain className="w-4 h-4" />
+                                {aiProviders[plan.aiProvider]?.name}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+                              {plan.userInput.substring(0, 150)}...
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 ml-6">
+                            <button
+                              onClick={() => {
+                                loadSavedPlan(plan);
+                                setShowSavedPlans(false);
+                              }}
+                              className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                              <FolderOpen className="w-4 h-4" />
+                              加载
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('确定要删除这个计划吗？此操作不可撤销。')) {
+                                  deleteSavedPlan(plan.id);
+                                }
+                              }}
+                              className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                              删除
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
